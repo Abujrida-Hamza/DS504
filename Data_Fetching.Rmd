@@ -1,0 +1,58 @@
+---
+  title: "DS504 Final Project Stage 1&2 - Data Preparation phase"
+author: "Worcester Polytechnic Institute"
+subtitle: Fall 2018
+output:
+  word_document:
+  toc: true
+theme: united
+---
+Read Main Tables
+```{r, echo=T}
+library("devtools")
+#library(easyGgplot2)
+library("ggplot2")
+library(plyr)
+library(reshape2)
+library(car)
+library(GGally)
+library(ggplot2)
+library(jsonlite)
+
+setwd("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Tables")
+Walking_Data <- read.csv(file="Walking.csv", header=TRUE, sep=",")
+length(unique(Walking_Data$healthCode))
+Clean_Walking_Data <- Walking_Data[complete.cases(Walking_Data),]
+
+UPDRS_Data <- read.csv(file="UPDRS.csv", header=TRUE, sep=",")
+length(UPDRS_Data$healthCode)
+length(unique(UPDRS_Data$healthCode))
+Clean_UPDRS_Data <- UPDRS_Data[complete.cases(UPDRS_Data),]
+length(Clean_UPDRS_Data$healthCode)
+length(unique(Clean_UPDRS_Data$healthCode))
+
+Demographics_Data <- read.csv(file="Demographics_Survey.csv", header=TRUE, sep=",")
+Clean_Demographics_Data <- Demographics_Data[complete.cases(Demographics_Data),]
+
+Outbound_FileNames_All <- read.csv(file="Outbound_FileNames-All.csv", header=TRUE, sep=",")
+
+#UPDRS_with_Walking_Data <- Clean_UPDRS_Data[match(Clean_Walking_Data$healthCode, Clean_UPDRS_Data$healthCode),]
+#length(unique(UPDRS_with_Walking_Data$healthCode))
+
+# professional diagnosic with PD
+Subjects_Prof_Diagnosis <- subset(Demographics_Data, subset=(professional.diagnosis=="true"))
+print ("prof diagnosed with PD")
+length(unique(Subjects_Prof_Diagnosis$healthCode))
+print ("unique prof diagnosed with PD")
+length(unique(Subjects_Prof_Diagnosis$ROW_ID))
+Clean_Subjects_Prof_Diagnosis <- Subjects_Prof_Diagnosis[complete.cases(Subjects_Prof_Diagnosis),]
+print ("complete cases prof diagnosed with PD")
+length(unique(Clean_Subjects_Prof_Diagnosis$healthCode))
+
+#Controls
+control_subjects <- subset(Demographics_Data, subset=(professional.diagnosis=="false"))
+print ("controls ......")
+length(unique(control_subjects$healthCode))
+Clean_control_subjects <- control_subjects[complete.cases(control_subjects),]
+print ("complete cases of controls....")
+length((Clean_control_subjects$healthCode))

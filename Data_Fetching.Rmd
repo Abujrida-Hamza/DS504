@@ -1,7 +1,7 @@
 ---
 title: "DS504 Final Project Stage 1&2 - Data Preparation phase"
-author: "Worcester Polytechnic Institute"
-subtitle: Fall 2018
+author: "Abujrida"
+subtitle: 
 output:
 word_document:
 toc: true

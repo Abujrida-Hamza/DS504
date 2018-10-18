@@ -1,16 +1,15 @@
 ---
-  title: "DS504 Final Project Stage 1&2 - Data Preparation phase"
+title: "DS504 Final Project Stage 1&2 - Data Preparation phase"
 author: "Worcester Polytechnic Institute"
 subtitle: Fall 2018
 output:
-  word_document:
-  toc: true
+word_document:
+toc: true
 theme: united
 ---
-Read Main Tables
+
 ```{r, echo=T}
 library("devtools")
-#library(easyGgplot2)
 library("ggplot2")
 library(plyr)
 library(reshape2)
@@ -19,6 +18,7 @@ library(GGally)
 library(ggplot2)
 library(jsonlite)
 
+#Read Main Tables
 setwd("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Tables")
 Walking_Data <- read.csv(file="Walking.csv", header=TRUE, sep=",")
 length(unique(Walking_Data$healthCode))
@@ -33,11 +33,7 @@ length(unique(Clean_UPDRS_Data$healthCode))
 
 Demographics_Data <- read.csv(file="Demographics_Survey.csv", header=TRUE, sep=",")
 Clean_Demographics_Data <- Demographics_Data[complete.cases(Demographics_Data),]
-
 Outbound_FileNames_All <- read.csv(file="Outbound_FileNames-All.csv", header=TRUE, sep=",")
-
-#UPDRS_with_Walking_Data <- Clean_UPDRS_Data[match(Clean_Walking_Data$healthCode, Clean_UPDRS_Data$healthCode),]
-#length(unique(UPDRS_with_Walking_Data$healthCode))
 
 # professional diagnosic with PD
 Subjects_Prof_Diagnosis <- subset(Demographics_Data, subset=(professional.diagnosis=="true"))
@@ -56,3 +52,822 @@ length(unique(control_subjects$healthCode))
 Clean_control_subjects <- control_subjects[complete.cases(control_subjects),]
 print ("complete cases of controls....")
 length((Clean_control_subjects$healthCode))
+```
+
+
+
+
+
+```{r, echo=T}
+# find walking activities for subjects.
+selectedRows <- ( Walking_Data$healthCode %in%  Subjects_Prof_Diagnosis$healthCode)
+subjects_Walking_Data <- Walking_Data[selectedRows,]
+length((subjects_Walking_Data$healthCode))
+length(unique(subjects_Walking_Data$healthCode))
+```
+
+```{r, echo=T}
+# find walking activities for Controls
+selectedRows <- ( Walking_Data$healthCode %in%  control_subjects$healthCode)
+Controls_Walking_Data <- Walking_Data[selectedRows,]
+length((Controls_Walking_Data$healthCode))
+length(unique(Controls_Walking_Data$healthCode))
+```
+
+
+```{r, echo=T}
+#All (subjects and Controls) with multiple walking activites
+Sub_observ <- ddply(Clean_Walking_Data, c("healthCode"), nrow)
+colnames(Sub_observ) <- c("healthCode", "Number_of_walking_Experiments")
+hist(Sub_observ$Number_of_walking_Experiments)
+
+mplot1 <- ggplot(Sub_observ,aes(Number_of_walking_Experiments, color="blue"))
+mplot1 + geom_bar(Sub_observ=10,colour="white", fill="steelblue") + xlim(0, 40)
+
+
+# All participants who performed between 9 and 20 walkings
+Walking_Experiments_over9 <- subset(Sub_observ, subset=(Number_of_walking_Experiments > 9 & Number_of_walking_Experiments < 20))
+length(Walking_Experiments_over9$healthCode)
+
+# All participanst who perform more than 3 walkings.
+Walking_Experiments_over3 <- subset(Sub_observ, subset=(Number_of_walking_Experiments > 3))
+print ("Number of participants who walked more than 3")
+length(unique(Walking_Experiments_over3$healthCode))
+mplot1 <- ggplot(Walking_Experiments_over3,aes(Number_of_walking_Experiments, color="blue"))
+mplot1 + geom_bar(Walking_Experiments_over3=10,colour="white", fill="green") + xlim(0, 100)
+
+```
+
+
+```{r, echo=T}
+# making sure the healthCode is not duplicate in the diagnostic and controls subjects.
+selectedRows <- (Subjects_Prof_Diagnosis$healthCode %in% control_subjects$healthCode)
+subject_Control_Both <- Subjects_Prof_Diagnosis[selectedRows,]
+length(unique(subject_Control_Both$healthCode))
+```
+
+
+```{r, echo=T}
+# find Subjects with >3 walking activities.
+selectedRows <- (Subjects_Prof_Diagnosis$healthCode %in% Walking_Experiments_over3$healthCode)
+subjects_3_Walk_Act <- Subjects_Prof_Diagnosis[selectedRows,]
+length((subjects_3_Walk_Act$healthCode))
+length(unique(subjects_3_Walk_Act$healthCode))
+
+mplot1 <- ggplot(subjects_3_Walk_Act,aes(age, color="blue"))
+mplot1 + geom_bar(subjects_3_Walk_Act=10,colour="white", fill="orange") 
+```
+
+
+```{r, echo=T}
+# Find the walking balance severity of those subjects with 3 walkings and up
+selectedRows <- (UPDRS_Data$healthCode %in% subjects_3_Walk_Act$healthCode)
+UPDRS_Subject_3 <- UPDRS_Data[selectedRows,]
+length((UPDRS_Subject_3$healthCode))
+Severity_subjects3 <- UPDRS_Subject_3$MDS.UPDRS2.10
+Severity_subjects3
+
+mplot1 <- ggplot(UPDRS_Subject_3,aes(MDS.UPDRS2.10, color="red"))
+mplot1 + geom_bar(UPDRS_Subject_3=10,colour="white", fill="red") 
+
+```
+
+
+```{r, echo=T}
+#Fetching walking Act for Subjects who has 3 walking records.
+selectedRows <- (Clean_Walking_Data$healthCode %in% subjects_3_Walk_Act$healthCode)
+Walk_Act_of_Subjects3 <- Clean_Walking_Data[selectedRows,]
+length(unique(Walk_Act_of_Subjects3$recordId))
+length(unique(Walk_Act_of_Subjects3$healthCode))
+Sub_observ2 <- ddply(Walk_Act_of_Subjects3, c("healthCode"), nrow)
+
+# Plot the number of walking each one of the subjects did
+colnames(Sub_observ2) <- c("Subject_healthCode", "Number_of_walking_Experiments")
+mplot1 <- ggplot(Sub_observ2,aes(Number_of_walking_Experiments, color="blue"))
+mplot1 + geom_bar(Sub_observ2=10,colour="white", fill="orange") + xlim(0, 100)
+
+
+# Find if they perform the walk before/after medication or at another time of the day. 
+mplot1 <- ggplot(Walk_Act_of_Subjects3,aes(medTimepoint, , fill=phoneInfo))
+mplot1 + geom_bar(Walk_Act_of_Subjects3=10,colour="white") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+```{r, echo=T}
+# find controls with 3 walking activities.
+selectedRows <- (control_subjects$healthCode %in% Walking_Experiments_over3$healthCode)
+Control_3_Walk_Act <- control_subjects[selectedRows,]
+length((Control_3_Walk_Act$healthCode))
+length(unique(Control_3_Walk_Act$healthCode))
+
+mplot1 <- ggplot(Control_3_Walk_Act,aes(age, color="blue"))
+mplot1 + geom_bar(Control_3_Walk_Act=10,colour="white", fill="blue") 
+```
+
+
+
+```{r, echo=T}
+# Find the walking balance severity of Controls with 3 walkings and up
+selectedRows <- (UPDRS_Data$healthCode %in% Control_3_Walk_Act$healthCode)
+UPDRS_Control_3 <- UPDRS_Data[selectedRows,]
+length((UPDRS_Control_3$healthCode))
+Severity_controls3 <- UPDRS_Control_3$MDS.UPDRS2.10
+
+mplot1 <- ggplot(UPDRS_Control_3,aes(MDS.UPDRS2.10, color="blue"))
+mplot1 + geom_bar(UPDRS_Control_3=10,colour="white", fill="blue") 
+
+```
+
+
+
+```{r, echo=T}
+
+#Fetching walking Act for Controls who has 3 walking records.
+selectedRows <- (Clean_Walking_Data$healthCode %in% Control_3_Walk_Act$healthCode)
+Walk_Act_of_Ctrl3 <- Clean_Walking_Data[selectedRows,]
+length(unique(Walk_Act_of_Ctrl3$recordId))
+length(unique(Walk_Act_of_Ctrl3$healthCode))
+Sub_observ3 <- ddply(Walk_Act_of_Ctrl3, c("healthCode"), nrow)
+
+
+
+# Plot the number of walking each one of the Controls did
+colnames(Sub_observ3) <- c("Control_healthCode", "Number_of_walking_Experiments")
+mplot1 <- ggplot(Sub_observ3,aes(Number_of_walking_Experiments, color="blue"))
+mplot1 + geom_bar(Sub_observ3=10,colour="white", fill="blue") + xlim(0, 100)
+
+
+# Find if Controls perform the walk before/after medication or at another time of the day. 
+mplot1 <- ggplot(Walk_Act_of_Ctrl3,aes(medTimepoint, , fill=phoneInfo))
+mplot1 + geom_bar(Walk_Act_of_Ctrl3=10,colour="white") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+```{r, echo=T}
+# Saving the findings for later use
+write.csv(Walk_Act_of_Subjects3, file = "Subjects_with_3_WA.csv")
+write.csv(Walk_Act_of_Ctrl3, file = "Control_with_3_WA.csv")
+
+```
+
+
+
+
+```{r, echo=T}
+# Filter walking happen before and after taking the medication for subjects.
+# for controls , filter only the walking for subjects who are not taking medication.
+
+Subjects_Walking_Selection <- subset(Walk_Act_of_Subjects3, subset=(Walk_Act_of_Subjects3$medTimepoint == "Immediately before Parkinson medication" | Walk_Act_of_Subjects3$medTimepoint == "Just after Parkinson medication (at your best)"))
+length(unique(Subjects_Walking_Selection$recordId))
+length(unique(Subjects_Walking_Selection$healthCode))
+
+Sub_observ <- ddply(Subjects_Walking_Selection, c("healthCode"), nrow)
+colnames(Sub_observ) <- c("healthCode", "Number_of_Walking_Activities")
+
+mplot1 <- ggplot(Subjects_Walking_Selection,aes(medTimepoint, , fill=phoneInfo))
+mplot1 + geom_bar(Subjects_Walking_Selection=10,colour="white") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+Controls_Walking_Selection <- subset(Walk_Act_of_Ctrl3, subset=(Walk_Act_of_Ctrl3$medTimepoint == "I don't take Parkinson medications"))
+length(unique(Controls_Walking_Selection$recordId))
+length(unique(Controls_Walking_Selection$healthCode))
+
+Sub_observ <- ddply(Controls_Walking_Selection, c("healthCode"), nrow)
+colnames(Sub_observ) <- c("healthCode", "Number_of_Walking_Activities")
+
+mplot1 <- ggplot(Controls_Walking_Selection,aes(medTimepoint, , fill=phoneInfo))
+mplot1 + geom_bar(Controls_Walking_Selection=10,colour="white") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r, echo=T}
+#Making sure the selected participants has at least 3 walkings.
+# first subjects
+Sub_observ <- ddply(Subjects_Walking_Selection, c("healthCode"), nrow)
+colnames(Sub_observ) <- c("healthCode", "Number_of_walking_Experiments")
+Subj_Walking_over3 <- subset(Sub_observ, subset=(Number_of_walking_Experiments > 3))
+length(Subj_Walking_over3$healthCode)
+length(unique(Subj_Walking_over3$healthCode))
+
+#walking Act for Subjects who has 3 walking records.
+selectedRows <- (Subjects_Walking_Selection$healthCode %in% Subj_Walking_over3$healthCode)
+Walk_Act_of_Subjects3 <- Subjects_Walking_Selection[selectedRows,]
+length(unique(Walk_Act_of_Subjects3$recordId))
+length(unique(Walk_Act_of_Subjects3$healthCode))
+Sub_observ <- ddply(Walk_Act_of_Subjects3, c("healthCode"), nrow)
+
+#Filtering Controls.
+Sub_observ <- ddply(Controls_Walking_Selection, c("healthCode"), nrow)
+colnames(Sub_observ) <- c("healthCode", "Number_of_walking_Experiments")
+ctrl_Walking_over3 <- subset(Sub_observ, subset=(Number_of_walking_Experiments > 3))
+length(ctrl_Walking_over3$healthCode)
+length(unique(ctrl_Walking_over3$healthCode))
+
+#walking Act for Subjects who has 3 walking records.
+selectedRows <- (Controls_Walking_Selection$healthCode %in% ctrl_Walking_over3$healthCode)
+Walk_Act_of_Ctrl3 <- Controls_Walking_Selection[selectedRows,]
+length(unique(Walk_Act_of_Ctrl3$recordId))
+length(unique(Walk_Act_of_Ctrl3$healthCode))
+Sub_observ <- ddply(Walk_Act_of_Ctrl3, c("healthCode"), nrow)
+
+# saving filtered data based on the above rule.
+write.csv(Walk_Act_of_Subjects3, file = "subjects_3andup_Walk_Act_filtered.csv")
+write.csv(Walk_Act_of_Ctrl3, file = "Control_3andup_Walk_Act_filtered.csv")
+```
+
+
+
+```{r, echo=T}
+# Selecting walking for all Subjects based on the date from taking the updsrs survery.
+
+ Walking_before_all = data.frame()
+ Walking_after_all = data.frame()
+
+# The numbers match again for the subjects did walking and filled in the demogrphic survey.
+selectedRows <- (Demographics_Data$healthCode %in% Walk_Act_of_Subjects3$healthCode)
+selected_subj_updrs_records <- Demographics_Data[selectedRows,]
+length(selected_subj_updrs_records$healthCode)
+length(unique(selected_subj_updrs_records$healthCode))
+
+# first select the records from updrs of the subjects selected above with 3 and above walking records.
+#here there is a problme as not all the subjects selected above filled in the UPDRS survey, so again we will need to refilter only the ones who did.
+selectedRows <- (UPDRS_Data$healthCode %in% Walk_Act_of_Subjects3$healthCode)
+selected_subj_updrs_records <- UPDRS_Data[selectedRows,]
+length(selected_subj_updrs_records$healthCode)
+length(unique(selected_subj_updrs_records$healthCode))
+
+#for each subject of the 168 find the walking closest to the date where updrs survey was filled in.
+for (i in 1:length(selected_subj_updrs_records$healthCode)){
+  selectedRows <- (Walk_Act_of_Subjects3$healthCode %in% selected_subj_updrs_records$healthCode[i])
+  subjectx_walking <- Walk_Act_of_Subjects3[selectedRows,]
+  print("------------------------------------")
+  print(i)
+  print(length(subjectx_walking$healthCode))
+  Walking_before <- subset(subjectx_walking, subset=(subjectx_walking$medTimepoint =="Immediately before Parkinson medication" ))
+  walking_after <- subset(subjectx_walking, subset=(subjectx_walking$medTimepoint =="Just after Parkinson medication (at your best)" ))
+  print(paste("Walking before", length(Walking_before$healthCode), sep = ","))
+  print(paste("Walking after", length(walking_after$healthCode), sep = ","))
+  
+  #finding the date where the updrs survey was taken.
+  print (paste("subject " , selected_subj_updrs_records$healthCode[i] ," took the survey on :", selected_subj_updrs_records$createdOn[i], sep =""))
+  
+  selectedRows <- (Demographics_Data$healthCode %in% selected_subj_updrs_records$healthCode[i])
+  Subject_demographic <- Demographics_Data[selectedRows,]
+  
+  if (length(Walking_before$healthCode) >= 1 ){
+  
+  # selecting the 3 before-walking which took place closer the date where the esurvey was talken.
+  Walking_before["Date_diff"] <- NA # That creates the new column 
+  Walking_before$Date_diff <- abs(Walking_before$createdOn - selected_subj_updrs_records$createdOn[i] ) # 
+  Walking_before3 <- top_n(Walking_before, n=-3, wt=Date_diff)
+ 
+  Walking_before3["Participant_id"] <- paste("Participant", i , sep = "_")
+  Walking_before3["walkings_of_type"] <- length(Walking_before$healthCode)
+  Walking_before3["updrs_createdOn"] <- selected_subj_updrs_records$createdOn[i]
+  Walking_before3["EQ.5D1"] <- selected_subj_updrs_records$EQ.5D1[i]
+  Walking_before3["GELTQ.1a"] <- selected_subj_updrs_records$GELTQ.1a[i]
+  Walking_before3["GELTQ.1b"] <- selected_subj_updrs_records$GELTQ.1b[i]
+  Walking_before3["GELTQ.1c"] <- selected_subj_updrs_records$GELTQ.1c[i]
+  Walking_before3["GELTQ.2"] <- selected_subj_updrs_records$GELTQ.2[i]
+  Walking_before3["MDS.UPDRS2.1"] <- selected_subj_updrs_records$MDS.UPDRS2.1[i]   
+  Walking_before3["MDS.UPDRS2.4"] <- selected_subj_updrs_records$MDS.UPDRS2.4[i]
+  Walking_before3["MDS.UPDRS2.5"] <- selected_subj_updrs_records$MDS.UPDRS2.5[i]
+  Walking_before3["MDS.UPDRS2.6"] <- selected_subj_updrs_records$MDS.UPDRS2.6[i]
+  Walking_before3["MDS.UPDRS2.7"] <- selected_subj_updrs_records$MDS.UPDRS2.7[i]
+  Walking_before3["MDS.UPDRS2.8"] <- selected_subj_updrs_records$MDS.UPDRS2.8[i]
+  Walking_before3["MDS.UPDRS2.9"] <- selected_subj_updrs_records$MDS.UPDRS2.9[i]
+  Walking_before3["MDS.UPDRS2.10"] <- selected_subj_updrs_records$MDS.UPDRS2.10[i]
+  Walking_before3["MDS.UPDRS2.12"] <- selected_subj_updrs_records$MDS.UPDRS2.12[i]
+  Walking_before3["MDS.UPDRS2.13"] <- selected_subj_updrs_records$MDS.UPDRS2.13[i]
+
+  
+  
+  if (length(Subject_demographic$healthCode) > 1 ){
+         print(paste("more than one demographic survey for the subject:", length(Subject_demographic$healthCode), sep = ","))
+       }
+  
+  
+  Walking_before3["age"] <- Subject_demographic$age[1]
+  Walking_before3["gender"] <- Subject_demographic$gender[1]
+  Walking_before3["race"] <- Subject_demographic$race[1]
+  Walking_before3["education"] <- Subject_demographic$education[1]
+  Walking_before3["employment"] <- Subject_demographic$employment[1]
+  Walking_before3["maritalStatus"] <- Subject_demographic$maritalStatus[1]
+  Walking_before3["are.caretaker"] <- Subject_demographic$are.caretaker[1]
+  Walking_before3["smartphone"] <- Subject_demographic$smartphone[1]
+  Walking_before3["professional.diagnosis"] <- Subject_demographic$professional.diagnosis[1]
+  Walking_before3["onset.year"] <- Subject_demographic$onset.year[1]
+  Walking_before3["diagnosis.year"] <- Subject_demographic$diagnosis.year[1]
+  Walking_before3["medication.start.year"] <- Subject_demographic$medication.start.year[1]
+  Walking_before3["healthcare.provider"] <- Subject_demographic$healthcare.provider[1]
+  Walking_before3["deep.brain.stimulation"] <- Subject_demographic$deep.brain.stimulation[1]
+  Walking_before3["surgery"] <- Subject_demographic$surgery[1]
+  Walking_before3["smoked"] <- Subject_demographic$smoked[1]
+  Walking_before3["years.smoking"] <- Subject_demographic$years.smoking[1]
+  Walking_before3["packs.per.day"] <- Subject_demographic$packs.per.day[1]
+  Walking_before3["last.smoked"] <- Subject_demographic$last.smoked[1]
+  Walking_before3["health.history"] <- Subject_demographic$health.history[1]
+  
+  Walking_before_all <- rbind(Walking_before_all, Walking_before3)
+  
+  }
+  
+  # selecting the 3 after-walking which took place close to the date where the survey wast taken.
+  
+   if (length(walking_after$healthCode) >= 1 ){
+  walking_after["Date_diff"] <- NA # That creates the new column 
+  walking_after$Date_diff <- abs(walking_after$createdOn - selected_subj_updrs_records$createdOn[i] ) # 
+  walking_after3 <- top_n(walking_after, n=-3, wt=Date_diff)
+ 
+  walking_after3["Participant_id"] <- paste("Participant", i , sep = "_")
+  walking_after3["walkings_of_type"] <- length(walking_after$healthCode)
+  walking_after3["updrs_createdOn"] <- selected_subj_updrs_records$createdOn[i]
+  walking_after3["EQ.5D1"] <- selected_subj_updrs_records$EQ.5D1[i]
+  walking_after3["GELTQ.1a"] <- selected_subj_updrs_records$GELTQ.1a[i]
+  walking_after3["GELTQ.1b"] <- selected_subj_updrs_records$GELTQ.1b[i]
+  walking_after3["GELTQ.1c"] <- selected_subj_updrs_records$GELTQ.1c[i]
+  walking_after3["GELTQ.2"] <- selected_subj_updrs_records$GELTQ.2[i]
+  walking_after3["MDS.UPDRS2.1"] <- selected_subj_updrs_records$MDS.UPDRS2.1[i]
+  walking_after3["MDS.UPDRS2.4"] <- selected_subj_updrs_records$MDS.UPDRS2.4[i]
+  walking_after3["MDS.UPDRS2.5"] <- selected_subj_updrs_records$MDS.UPDRS2.5[i]
+  walking_after3["MDS.UPDRS2.6"] <- selected_subj_updrs_records$MDS.UPDRS2.6[i]
+  walking_after3["MDS.UPDRS2.7"] <- selected_subj_updrs_records$MDS.UPDRS2.7[i]
+  walking_after3["MDS.UPDRS2.8"] <- selected_subj_updrs_records$MDS.UPDRS2.8[i]
+  walking_after3["MDS.UPDRS2.9"] <- selected_subj_updrs_records$MDS.UPDRS2.9[i]
+  walking_after3["MDS.UPDRS2.10"] <- selected_subj_updrs_records$MDS.UPDRS2.10[i]
+  walking_after3["MDS.UPDRS2.12"] <- selected_subj_updrs_records$MDS.UPDRS2.12[i]
+  walking_after3["MDS.UPDRS2.13"] <- selected_subj_updrs_records$MDS.UPDRS2.13[i]
+  
+  
+  walking_after3["age"] <- Subject_demographic$age[1]
+  walking_after3["gender"] <- Subject_demographic$gender[1]
+  walking_after3["race"] <- Subject_demographic$race[1]
+  walking_after3["education"] <- Subject_demographic$education[1]
+  walking_after3["employment"] <- Subject_demographic$employment[1]
+  walking_after3["maritalStatus"] <- Subject_demographic$maritalStatus[1]
+  walking_after3["are.caretaker"] <- Subject_demographic$are.caretaker[1]
+  walking_after3["smartphone"] <- Subject_demographic$smartphone[1]
+  walking_after3["professional.diagnosis"] <- Subject_demographic$professional.diagnosis[1]
+  walking_after3["onset.year"] <- Subject_demographic$onset.year[1]
+  walking_after3["diagnosis.year"] <- Subject_demographic$diagnosis.year[1]
+  walking_after3["medication.start.year"] <- Subject_demographic$medication.start.year[1]
+  walking_after3["healthcare.provider"] <- Subject_demographic$healthcare.provider[1]
+  walking_after3["deep.brain.stimulation"] <- Subject_demographic$deep.brain.stimulation[1]
+  walking_after3["surgery"] <- Subject_demographic$surgery[1]
+  walking_after3["smoked"] <- Subject_demographic$smoked[1]
+  walking_after3["years.smoking"] <- Subject_demographic$years.smoking[1]
+  walking_after3["packs.per.day"] <- Subject_demographic$packs.per.day[1]
+  walking_after3["last.smoked"] <- Subject_demographic$last.smoked[1]
+  walking_after3["health.history"] <- Subject_demographic$health.history[1]
+  
+  Walking_after_all <- rbind(Walking_after_all, walking_after3)
+  
+   }
+  
+  print("------------------------------------")
+  length(unique(Walking_after_all$healthCode))
+  length(unique(Walking_before_all$healthCode))
+  write.csv(Walking_after_all, file = "Walking_after_all.csv")
+  write.csv(Walking_before_all, file = "Walking_before_all.csv")
+}
+
+```
+
+
+
+```{r, echo=T}
+# Selecting walking for all Controls based on the date from taking the updsrs survery.
+ ctrl_Walking_no_med_all = data.frame()
+ 
+# The numbers match again for the subjects did walking and filled in the demogrphic survey.
+selectedRows <- (Demographics_Data$healthCode %in% Walk_Act_of_Ctrl3$healthCode)
+selected_ctrl_updrs_records <- Demographics_Data[selectedRows,]
+length(selected_ctrl_updrs_records$healthCode)
+length(unique(selected_ctrl_updrs_records$healthCode))
+
+# first select the records from updrs of the subjects selected above with 3 and above walking records.
+#here there is a problme as not all the subjects selected above filled in the UPDRS survey, so again we will need to refilter only the ones who did.
+selectedRows <- (UPDRS_Data$healthCode %in% Walk_Act_of_Ctrl3$healthCode)
+selected_ctrl_updrs_records <- UPDRS_Data[selectedRows,]
+length(selected_ctrl_updrs_records$healthCode)
+length(unique(selected_ctrl_updrs_records$healthCode))
+
+#for each subject of the 168 find the walking closest to the date where updrs survey was filled in.
+for (i in 1:length(selected_ctrl_updrs_records$healthCode)){
+  selectedRows <- (Walk_Act_of_Ctrl3$healthCode %in% selected_ctrl_updrs_records$healthCode[i])
+  subjectx_walking <- Walk_Act_of_Ctrl3[selectedRows,]
+  print("------------------------------------")
+  print(i)
+  print(length(subjectx_walking$healthCode))
+  
+  Walking_no_med <- subset(subjectx_walking, subset=(subjectx_walking$medTimepoint =="I don't take Parkinson medications" ))
+  print(paste("Walking no medication", length(Walking_no_med$healthCode), sep = ","))
+  
+  
+  #finding the date where the updrs survey was taken.
+  print (paste("subject " , selected_ctrl_updrs_records$healthCode[i] ," took the survey on :", selected_ctrl_updrs_records$createdOn[i], sep =""))
+  
+  selectedRows <- (Demographics_Data$healthCode %in% selected_ctrl_updrs_records$healthCode[i])
+  Subject_demographic <- Demographics_Data[selectedRows,]
+  
+  if (length(Walking_no_med$healthCode) >= 1 ){
+  
+  # selecting the 3 before-walking which took place closer the date where the esurvey was talken.
+  Walking_no_med["Date_diff"] <- NA # That creates the new column 
+  Walking_no_med$Date_diff <- abs(Walking_no_med$createdOn - selected_ctrl_updrs_records$createdOn[i] ) # 
+  Walking_no_med3 <- top_n(Walking_no_med, n=-3, wt=Date_diff)
+ 
+  Walking_no_med3["Participant_id"] <- paste("Participant", i+1000 , sep = "_")
+  Walking_no_med3["walkings_of_type"] <- length(Walking_no_med$healthCode)
+  Walking_no_med3["updrs_createdOn"] <- selected_ctrl_updrs_records$createdOn[i]
+  Walking_no_med3["EQ.5D1"] <- selected_ctrl_updrs_records$EQ.5D1[i]
+  Walking_no_med3["GELTQ.1a"] <- selected_ctrl_updrs_records$GELTQ.1a[i]
+  Walking_no_med3["GELTQ.1b"] <- selected_ctrl_updrs_records$GELTQ.1b[i]
+  Walking_no_med3["GELTQ.1c"] <- selected_ctrl_updrs_records$GELTQ.1c[i]
+  Walking_no_med3["GELTQ.2"] <- selected_ctrl_updrs_records$GELTQ.2[i]
+  Walking_no_med3["MDS.UPDRS2.1"] <- selected_ctrl_updrs_records$MDS.UPDRS2.1[i]   
+  Walking_no_med3["MDS.UPDRS2.4"] <- selected_ctrl_updrs_records$MDS.UPDRS2.4[i]
+  Walking_no_med3["MDS.UPDRS2.5"] <- selected_ctrl_updrs_records$MDS.UPDRS2.5[i]
+  Walking_no_med3["MDS.UPDRS2.6"] <- selected_ctrl_updrs_records$MDS.UPDRS2.6[i]
+  Walking_no_med3["MDS.UPDRS2.7"] <- selected_ctrl_updrs_records$MDS.UPDRS2.7[i]
+  Walking_no_med3["MDS.UPDRS2.8"] <- selected_ctrl_updrs_records$MDS.UPDRS2.8[i]
+  Walking_no_med3["MDS.UPDRS2.9"] <- selected_ctrl_updrs_records$MDS.UPDRS2.9[i]
+  Walking_no_med3["MDS.UPDRS2.10"] <- selected_ctrl_updrs_records$MDS.UPDRS2.10[i]
+  Walking_no_med3["MDS.UPDRS2.12"] <- selected_ctrl_updrs_records$MDS.UPDRS2.12[i]
+  Walking_no_med3["MDS.UPDRS2.13"] <- selected_ctrl_updrs_records$MDS.UPDRS2.13[i]
+
+  if (length(Subject_demographic$healthCode) > 1 ){
+         print(paste("more than one demographic survey for the subject:", length(Subject_demographic$healthCode), sep = ","))
+       }
+  
+  Walking_no_med3["age"] <- Subject_demographic$age[1]
+  Walking_no_med3["gender"] <- Subject_demographic$gender[1]
+  Walking_no_med3["race"] <- Subject_demographic$race[1]
+  Walking_no_med3["education"] <- Subject_demographic$education[1]
+  Walking_no_med3["employment"] <- Subject_demographic$employment[1]
+  Walking_no_med3["maritalStatus"] <- Subject_demographic$maritalStatus[1]
+  Walking_no_med3["are.caretaker"] <- Subject_demographic$are.caretaker[1]
+  Walking_no_med3["smartphone"] <- Subject_demographic$smartphone[1]
+  Walking_no_med3["professional.diagnosis"] <- Subject_demographic$professional.diagnosis[1]
+  Walking_no_med3["onset.year"] <- Subject_demographic$onset.year[1]
+  Walking_no_med3["diagnosis.year"] <- Subject_demographic$diagnosis.year[1]
+  Walking_no_med3["medication.start.year"] <- Subject_demographic$medication.start.year[1]
+  Walking_no_med3["healthcare.provider"] <- Subject_demographic$healthcare.provider[1]
+  Walking_no_med3["deep.brain.stimulation"] <- Subject_demographic$deep.brain.stimulation[1]
+  Walking_no_med3["surgery"] <- Subject_demographic$surgery[1]
+  Walking_no_med3["smoked"] <- Subject_demographic$smoked[1]
+  Walking_no_med3["years.smoking"] <- Subject_demographic$years.smoking[1]
+  Walking_no_med3["packs.per.day"] <- Subject_demographic$packs.per.day[1]
+  Walking_no_med3["last.smoked"] <- Subject_demographic$last.smoked[1]
+  Walking_no_med3["health.history"] <- Subject_demographic$health.history[1]
+  
+  ctrl_Walking_no_med_all <- rbind(ctrl_Walking_no_med_all, Walking_no_med3)
+  
+  }
+  
+  # selecting the 3 after-walking which took place close to the date where the survey wast taken.
+  
+  print("------------------------------------")
+  
+  length(unique(ctrl_Walking_no_med_all$healthCode))
+  write.csv(ctrl_Walking_no_med_all, file = "ctrl_Walking_no_med_all.csv")
+  
+}
+
+```
+
+
+```{r, echo=T}
+# find list of all the acceleration outbound filenames.
+fileNames <- Sys.glob("F:/PhD-WPI/Spring-2017/.synapseCache/*/*/*/*/accel_walking_outbound*.tmp")
+write.csv(fileNames, file="Accel_Outbound_FileNames-All.csv")
+Accel_Outbound_FileNames <- read.csv(file="Accel_Outbound_FileNames-All.csv", header=TRUE, sep=",")
+```
+
+```{r, echo=T}
+# find list of all the gyroscobe outbound filenames.
+fileNames <- Sys.glob("F:/PhD-WPI/Spring-2017/.synapseCache/*/*/*/*/deviceMotion_walking_outbound*.tmp")
+write.csv(fileNames, file="Gyro_Outbound_FileNames-All.csv")
+Gyro_Outbound_FileNames <- read.csv(file="Gyro_Outbound_FileNames-All.csv", header=TRUE, sep=",")
+```
+
+
+
+```{r, echo=T}
+# Prepare Data for Feature Extraction
+# Reformat accelrometer data for subjectes before medications recordings.
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Accel_Outbound_FolderNames <- Walking_before_all$accel_walking_outbound.json.items
+Accel_Outbound_FolderNames
+matches <- paste(Accel_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Accel_Outbound_FileNames$x )
+Acc_Subj_walk_before <- Accel_Outbound_FileNames[selectedRows,]
+
+#Acc_Subj_walk_before <- Accel_Outbound_FolderNames[395,]
+for (fileName in Acc_Subj_walk_before$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("x", "y", "z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_before/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_before/",temp[[1]][8],sep="")
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+```
+
+```{r, echo=T}
+# Reformat accelrometer data for subjectes after medications recordings.
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Accel_Outbound_FolderNames <- Walking_after_all$accel_walking_outbound.json.items
+Accel_Outbound_FolderNames
+matches <- paste(Accel_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Accel_Outbound_FileNames$x )
+Acc_Subj_walk_after <- Accel_Outbound_FileNames[selectedRows,]
+
+for (fileName in Acc_Subj_walk_after$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("x", "y", "z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_after/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_after/",temp[[1]][8],sep="")
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+```
+
+
+```{r, echo=T}
+# Reformat accelrometer data for controls.
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Accel_Outbound_FolderNames <- ctrl_Walking_no_med_all$accel_walking_outbound.json.items
+Accel_Outbound_FolderNames
+matches <- paste(Accel_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Accel_Outbound_FileNames$x )
+Acc_ctrl_walk <- Accel_Outbound_FileNames[selectedRows,]
+
+for (fileName in Acc_ctrl_walk$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("x", "y", "z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_ctrl/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Acc_ctrl/",temp[[1]][8],sep="")
+  #write.csv(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE)
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+length(unique(ctrl_Walking_no_med_all$accel_walking_outbound.json.items))
+
+```
+
+
+```{r, echo=T}
+# Reformat gyroscope data for subjectes before medications recordings.
+
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Gyro_Outbound_FolderNames <- Walking_before_all$deviceMotion_walking_outbound.json.items
+Gyro_Outbound_FolderNames
+matches <- paste(Gyro_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Gyro_Outbound_FileNames$x )
+Dm_Subj_walk_before <- Gyro_Outbound_FileNames[selectedRows,]
+
+for (fileName in Dm_Subj_walk_before$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("rotationRate.x", "rotationRate.y", "rotationRate.z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_before/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_before/",temp[[1]][8],sep="")
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+```
+
+
+```{r, echo=T}
+# Reformat gyroscope data for subjectes after medications recordings.
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Gyro_Outbound_FolderNames <- Walking_after_all$deviceMotion_walking_outbound.json.items
+Gyro_Outbound_FolderNames
+matches <- paste(Gyro_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Gyro_Outbound_FileNames$x )
+Dm_Subj_walk_after <- Gyro_Outbound_FileNames[selectedRows,]
+
+for (fileName in Dm_Subj_walk_after$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("rotationRate.x", "rotationRate.y", "rotationRate.z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_after/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_after/",temp[[1]][8],sep="")
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+```
+
+
+```{r, echo=T}
+# Reformat gyroscope data for subjectes no med recordings.
+trim.trailing <- function (x) gsub(".tmp", "", x)
+Gyro_Outbound_FolderNames <- ctrl_Walking_no_med_all$deviceMotion_walking_outbound.json.items
+Gyro_Outbound_FolderNames
+matches <- paste(Gyro_Outbound_FolderNames, collapse="|")
+
+selectedRows <- grep(matches, Gyro_Outbound_FileNames$x )
+Dm_Subj_walk <- Gyro_Outbound_FileNames[selectedRows,]
+
+for (fileName in Dm_Subj_walk$x) {
+  print(fileName)
+  doc1<-fromJSON(txt=fileName, flatten = TRUE)
+  doc2 <-doc1[c("rotationRate.x", "rotationRate.y", "rotationRate.z", "timestamp")]
+  OutFileName <- trim.trailing(fileName)
+  temp <-strsplit(OutFileName,"/")
+  OutFileName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_ctrl/",temp[[1]][8],"/",temp[[1]][9], ".csv",sep="")
+  dirName <- paste("F:/PhD-WPI/Spring_2018/Outbound_Files_Gyro_ctrl/",temp[[1]][8],sep="")
+  #write.csv(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE)
+  dir.create(dirName)
+  write.table(doc2, file=OutFileName, row.names=FALSE, col.names=FALSE, sep=",")
+  print(OutFileName)
+}
+
+```
+
+
+```{r, echo=T}
+# Now we have the accelerometer and Gyroscope data for :
+# 1- Before taking the medication.
+# 2- After taking the medication.
+# 3- No mecication (Healthy Controls).
+
+# Subjects Accelrometer Before
+# Moving the data to subject folder and organize data under that folder.
+for (row in 1:nrow(Walking_before_all)){
+
+ print(paste( row ,Walking_before_all$accel_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",
+                      Walking_before_all$healthCode[row],"/before/",Walking_before_all$accel_walking_outbound.json.items[row],sep="")
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_before_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_before_all$healthCode[row],"/before",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/",Walking_before_all$accel_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+
+
+
+```{r, echo=T}
+# Subjects Gyroscope before.
+# moving the data to subject folder and organize data under that folder.
+
+for (row in 1:nrow(Walking_before_all)){
+
+
+ print(paste( row ,Walking_before_all$deviceMotion_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",
+                      Walking_before_all$healthCode[row],"/Gyro-before/",Walking_before_all$deviceMotion_walking_outbound.json.items[row],sep="")
+                      
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_before_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_before_all$healthCode[row],"/Gyro-before",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Gyro_before/",Walking_before_all$deviceMotion_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+
+
+```{r, echo=T}
+# Subjects Accelrometer After
+# moving the data to subject folder and organize data under that folder.
+
+for (row in 1:nrow(Walking_after_all)){
+
+ print(paste( row ,Walking_after_all$accel_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",
+                      Walking_after_all$healthCode[row],"/Acc_after/",Walking_after_all$accel_walking_outbound.json.items[row],sep="")
+                      
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_after_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_after_all$healthCode[row],"/Acc_after",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_after/",Walking_after_all$accel_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+
+
+```{r, echo=T}
+# Subjects Gyroscope after :
+# moving the data to subject folder and organize data under that folder.
+
+for (row in 1:nrow(Walking_after_all)){
+
+ print(paste( row ,Walking_after_all$deviceMotion_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",
+                      Walking_after_all$healthCode[row],"/Gyro-after/",Walking_after_all$deviceMotion_walking_outbound.json.items[row],sep="")
+                      
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_after_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_before/bySubject/",Walking_after_all$healthCode[row],"/Gyro-after",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Gyro_after/",Walking_after_all$deviceMotion_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+
+```{r, echo=T}
+# Controls Accelrometer
+# moving the data to subject folder and organize data under that folder.
+
+for (row in 1:nrow(ctrl_Walking_no_med_all)){
+
+ print(paste( row ,ctrl_Walking_no_med_all$accel_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",
+                      ctrl_Walking_no_med_all$healthCode[row],"/Acc/",ctrl_Walking_no_med_all$accel_walking_outbound.json.items[row],sep="")
+                      
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",ctrl_Walking_no_med_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",ctrl_Walking_no_med_all$healthCode[row],"/Acc",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/",ctrl_Walking_no_med_all$accel_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+
+```{r, echo=T}
+# Controls Gyroscope
+# moving the data to subject folder and organize data under that folder.
+
+for (row in 1:nrow(ctrl_Walking_no_med_all)){
+
+ print(paste( row ,ctrl_Walking_no_med_all$deviceMotion_walking_outbound.json.items[row]))
+ OutFileName <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",
+                      ctrl_Walking_no_med_all$healthCode[row],"/Gyro/",ctrl_Walking_no_med_all$deviceMotion_walking_outbound.json.items[row],sep="")
+                      
+ dir.create("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/", showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",ctrl_Walking_no_med_all$healthCode[row],sep=""),showWarnings = FALSE)
+ dir.create(paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Acc_ctrl/bySubject/",ctrl_Walking_no_med_all$healthCode[row],"/Gyro",sep=""),showWarnings = FALSE)
+ dir.create(OutFileName)
+ print(OutFileName)
+ 
+ fromFolder <- paste("E:/PHD-WPI/Fall-2018/DS504/DS504_Project/Raw_Data/Outbound_Files_Gyro_ctrl/",ctrl_Walking_no_med_all$deviceMotion_walking_outbound.json.items[row],sep="")
+ files <- sapply(fromFolder, list.files, full.names = TRUE)
+ file.copy(from=files , to=OutFileName, copy.mode = TRUE)
+ 
+}
+
+```
+# Now the data is ready for feature extraction.
+# end of file.
+

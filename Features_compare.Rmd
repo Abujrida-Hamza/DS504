@@ -1,0 +1,821 @@
+
+
+```{r, echo=T}
+library("devtools")
+library(plyr)
+library(reshape2)
+library(GGally)
+library(ggplot2)
+library(jsonlite)
+library(dplyr)
+library (SparkR)
+library(plyr)
+require("sos")
+library(randomForest)
+library(caret)
+library(tm)
+library(caret)
+library(ggplot2)
+library(tidyr)
+
+setwd("E:/PhD-WPI/Fall-2018/DS504/Assignment_7/")
+       
+      
+#reading surveys for participants
+subj_after_features <- read.csv(file="subj_after_features.csv", header=TRUE, sep=",")
+subj_before_features <- read.csv(file="subj_before_features.csv", header=TRUE, sep=",")
+ctrl_features <- read.csv(file="ctrl_features.csv", header=TRUE, sep=",")
+
+# cleaning away the bad records.
+subj_after_features_clean<-subset(subj_after_features, (!is.na(subj_after_features[,96])) & (!is.na(subj_after_features[,121])))
+subj_after_features_clean <- subset(subj_after_features_clean, subset=(folder!= 0 ))
+subj_after_features_clean <- subset(subj_after_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(subj_after_features_clean, file = "subj_after_features_clean.csv")
+
+# cleaning away the bad records.
+subj_before_features_clean<-subset(subj_before_features, (!is.na(subj_before_features[,96])) & (!is.na(subj_before_features[,121])))
+subj_before_features_clean <- subset(subj_before_features_clean, subset=(folder!= 0 ))
+subj_before_features_clean <- subset(subj_before_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(subj_before_features_clean, file = "subj_before_features_clean.csv")
+
+# cleaning away the bad records.
+ctrl_features_clean<-subset(ctrl_features, (!is.na(ctrl_features[,96])) & (!is.na(ctrl_features[,121])))
+ctrl_features_clean <- subset(ctrl_features_clean, subset=(folder!= 0 ))
+ctrl_features_clean <- subset(ctrl_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(ctrl_features_clean, file = "ctrl_features_clean.csv")
+```
+
+
+
+
+```{r}
+setwd("E:/PhD-WPI/Fall-2018/DS504/Assignment_7/")
+#boxplot(Train_Data$peakFreq,Train_Data$medTimepoint)
+
+Train_Data <- read.csv("subj_before_features_clean.csv", header=TRUE, sep=",")
+
+
+
+colnames(Train_Data)
+#Train_Data[,97] # this is foldername
+
+# numSteps at 59
+Train_Data_plot<-subset(Train_Data, (!is.na(Train_Data[,59])) )
+Train_Data_plot<-subset(Train_Data, (!is.na(Train_Data[,37])) )
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=age, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(20.00, 100.00)) 
+ggsave("pics_before/age.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=numSteps, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-1.01, 20.3)) 
+ggsave("pics_before/numSteps.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageStepTime, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.3)) 
+ggsave("pics_before/averageStepTime.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageCadence, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-1.01, 5.3))
+ggsave("pics_before/averageCadence.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=skewness, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 3.3))
+ggsave("pics_before/skewness.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=kurtosis, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(1.01, 10.3))
+ggsave("pics_before/kurtosis.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=minMaxDiff, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 2.3))
+ggsave("pics_before/minMaxDiff.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=std, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_before/std.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=rms, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_before/rms.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=coef.of.var.of.stepTime, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.35))
+ggsave("pics_before/coef.of.var.of.stepTime.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=harmonic.ratio, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 2.35))
+ggsave("pics_before/harmonic.ratio.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=cross.correlation, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-240.01, 140.35))
+ggsave("pics_before/cross.correlation.png")
+
+
+ggplot2::ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=entropy.rate, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(8.9, 9.1))
+ggsave("pics_before/entropy.rate.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averagePower, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.25))
+ggsave("pics_before/averagePower.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(10.01, 80.35))
+
+ggsave("pics_before/radioSpectralPeak.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=snr, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_before/snr.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_before/energy.in._5.to.3.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=windowed.energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.75))
+  ggsave("pics_before/windowed.energy.in._5.to.3.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=peakFreq, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.55))
+  ggsave("pics_before/peakFreq.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=spectralCentroid, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.55))
+  ggsave("pics_before/spectralCentroid.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=bandwidth, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.05))
+  ggsave("pics_before/bandwidth.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=wavelet.band, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.951, 1.05))
+  ggsave("pics_before/wavelet.band.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=wavelet.entropy, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.35))
+  ggsave("pics_before/wavelet.entropy.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak_FFT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(20.01, 100.35))
+  ggsave("pics_before/radioSpectralPeak_FFT.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak_DCT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(15.01, 100.35))
+  ggsave("pics_before/radioSpectralPeak_DCT.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageStepLength, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 3.35))
+  ggsave("pics_before/averageStepLength.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=gaitVelocity, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_before/gaitVelocity.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.1, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_before/scale.1.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.2, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.35))
+ggsave("pics_before/scale.2.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.25, 5.25))
+ggsave("pics_before/scale.3.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.4, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.5, 2.35))
+ggsave("pics_before/scale.4.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.5, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 2.35))
+ggsave("pics_before/scale.5.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.6, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 2.35))
+ggsave("pics_before/scale.6.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.7, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_before/scale.7.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.8, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 3.35))
+  ggsave("pics_before/scale.8.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.9, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 3.35))
+  ggsave("pics_before/scale.9.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.10, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 3.35))
+  ggsave("pics_before/scale.10.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=complexity, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(5.01, 35.35))
+  ggsave("pics_before/complexity.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.X.Z, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 10.35))
+  ggsave("pics_before/Gyro_Sway.X.Z.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.X.Y, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.25, 25.35))
+  ggsave("pics_before/Gyro_Sway.X.Y.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.Y.Z, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 14.35))
+  ggsave("pics_before/Gyro_Sway.Y.Z.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_skewness, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.251, 3.35))
+  ggsave("pics_before/Gyro_skewness.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_kurtosis, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+  ggsave("pics_before/Gyro_kurtosis.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_minMaxDiff, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.35, 4.35))
+ggsave("pics_before/Gyro_minMaxDiff.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_std, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_before/Gyro_std.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_rms, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_before/Gyro_rms.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_harmonic.ratio, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.5, 2.35))
+ggsave("pics_before/Gyro_harmonic.ratio.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_cross.correlation, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-50.01, 50.35))
+ggsave("pics_before/Gyro_cross.correlation.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_entropy.rate, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(5.01, 10.35))
+ggsave("pics_before/Gyro_entropy.rate.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_averagePower, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_before/Gyro_averagePower.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(10.01, 50.35))
+ggsave("pics_before/Gyro_radioSpectralPeak.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_snr, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+  ggsave("pics_before/Gyro_snr.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+  ggsave("pics_before/Gyro_energy.in._5.to.3.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_windowed.energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+  ggsave("pics_before/Gyro_windowed.energy.in._5.to.3.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_peakFreq, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+  ggsave("pics_before/Gyro_peakFreq.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_spectralCentroid, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.5))
+  ggsave("pics_before/Gyro_spectralCentroid.png")
+  
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_bandwidth, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.15))
+  ggsave("pics_before/Gyro_bandwidth.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_wavelet.band, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.75, 1.05))
+  ggsave("pics_before/Gyro_wavelet.band.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_wavelet.entropy, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(0.01, 0.35))
+  ggsave("pics_before/Gyro_wavelet.entropy.png")
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak_FFT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(10.01, 100.35))
+  ggsave("pics_before/Gyro_radioSpectralPeak_FFT.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak_DCT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(10.01, 100.35))
+ggsave("pics_before/Gyro_radioSpectralPeak_DCT.png")
+
+  
+
+```
+
+
+
+
+```{r}
+Train_Data <- read.csv("subj_after_features_clean.csv", header=TRUE, sep=",")
+
+
+colnames(Train_Data)
+#Train_Data[,97] # this is foldername
+
+# numSteps at 59
+Train_Data_plot<-subset(Train_Data, (!is.na(Train_Data[,59])) )
+Train_Data_plot<-subset(Train_Data, (!is.na(Train_Data[,37])) )
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=numSteps, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med numSteps") +
+  coord_cartesian(ylim = c(-1.01, 20.3)) 
+ggsave("pics_after/numSteps.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageStepTime, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med averageStepTime") +
+  coord_cartesian(ylim = c(0.01, 1.3))
+ggsave("pics_after/averageStepTime.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageCadence, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med averageCadence") +
+  coord_cartesian(ylim = c(-1.01, 5.3))
+ggsave("pics_after/averageCadence.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=skewness, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med skewness") +
+  coord_cartesian(ylim = c(0.01, 3.3))
+ggsave("pics_after/skewness.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=kurtosis, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med kurtosis") +
+  coord_cartesian(ylim = c(1.01, 10.3))
+ggsave("pics_after/kurtosis.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=minMaxDiff, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med minMaxDiff") +
+  coord_cartesian(ylim = c(0.01, 2.3))
+ggsave("pics_after/minMaxDiff.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=std, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med std") +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_after/std.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=rms, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med rms") +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_after/rms.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=coef.of.var.of.stepTime, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med coef.of.var.of.stepTime") +
+  coord_cartesian(ylim = c(0.01, 1.35))
+ggsave("pics_after/coef.of.var.of.stepTime.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=harmonic.ratio, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med harmonic.ratio") +
+  coord_cartesian(ylim = c(0.01, 2.35))
+ggsave("pics_after/harmonic.ratio.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=cross.correlation, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med cross.correlation") +
+  coord_cartesian(ylim = c(-140.01, 140.35))
+ggsave("pics_after/cross.correlation.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=entropy.rate, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med entropy.rate") +
+  coord_cartesian(ylim = c(7.5, 10.35))
+ggsave("pics_after/entropy.rate.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averagePower, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med averagePower") +
+  coord_cartesian(ylim = c(0.01, 0.25))
+ggsave("pics_after/averagePower.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med radioSpectralPeak") +
+  coord_cartesian(ylim = c(10.01, 80.35))
+ggsave("pics_after/radioSpectralPeak.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=snr, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med snr") +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_after/snr.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med energy.in._5.to.3") +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_after/energy.in._5.to.3.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=windowed.energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med windowed.energy.in._5.to.3") +
+  coord_cartesian(ylim = c(0.01, 0.75))
+ggsave("pics_after/windowed.energy.in._5.to.3.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=peakFreq, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med peakFreq") +
+  coord_cartesian(ylim = c(0.01, 0.55))
+ggsave("pics_after/peakFreq.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=spectralCentroid, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med spectralCentroid") +
+  coord_cartesian(ylim = c(0.01, 0.55))
+ggsave("pics_after/spectralCentroid.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=bandwidth, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med bandwidth") +
+  coord_cartesian(ylim = c(0.01, 0.05))
+ggsave("pics_after/bandwidth.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=wavelet.band, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med wavelet.band") +
+  coord_cartesian(ylim = c(0.951, 1.05))
+ggsave("pics_after/wavelet.band.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=wavelet.entropy, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med wavelet.entropy") +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_after/wavelet.entropy.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak_FFT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med radioSpectralPeak_FFT") +
+  coord_cartesian(ylim = c(20.01, 100.35))
+ggsave("pics_after/radioSpectralPeak_FFT.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=radioSpectralPeak_DCT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med radioSpectralPeak_DCT") +
+  coord_cartesian(ylim = c(15.01, 100.35))
+ggsave("pics_after/radioSpectralPeak_DCT.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageStepLength, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med averageStepLength") +
+  coord_cartesian(ylim = c(0.01, 3.35))
+ggsave("pics_after/averageStepLength.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=gaitVelocity, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med gaitVelocity") +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_after/gaitVelocity.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.1, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.1") +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_after/scale.1.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.2, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.2") +
+  coord_cartesian(ylim = c(0.01, 1.35))
+ggsave("pics_after/scale.2.png")
+
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.3") +
+  coord_cartesian(ylim = c(0.25, 5.25))
+ggsave("pics_after/scale.3.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.4, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.4") +
+  coord_cartesian(ylim = c(0.5, 2.35))
+ggsave("pics_after/scale.4.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.5, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.5") +
+  coord_cartesian(ylim = c(0.251, 2.35))
+ggsave("pics_after/scale.5.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.6, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.6") +
+  coord_cartesian(ylim = c(0.251, 2.35))
+ggsave("pics_after/scale.6.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.7, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med scale.7") +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_after/scale.7.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.8, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med scale.8") +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_after/scale.8.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.9, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med scale.9") +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_after/scale.9.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=scale.10, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med scale.10") +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_after/scale.10.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=complexity, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med complexity") +
+  coord_cartesian(ylim = c(5.01, 35.35))
+ggsave("pics_after/complexity.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.X.Z, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_Sway.X.Z") +
+  coord_cartesian(ylim = c(0.01, 10.35))
+ggsave("pics_after/Gyro_Sway.X.Z.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.X.Y, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_Sway.X.Y") +
+  coord_cartesian(ylim = c(0.25, 25.35))
+ggsave("pics_after/Gyro_Sway.X.Y.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_Sway.Y.Z, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_Sway.Y.Z") +
+  coord_cartesian(ylim = c(0.01, 14.35))
+ggsave("pics_after/Gyro_Sway.Y.Z.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_skewness, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_skewness") +
+  coord_cartesian(ylim = c(0.251, 3.35))
+ggsave("pics_after/Gyro_skewness.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_kurtosis, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_kurtosis") +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_after/Gyro_kurtosis.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_minMaxDiff, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_minMaxDiff") +
+  coord_cartesian(ylim = c(0.35, 4.35))
+ggsave("pics_after/Gyro_minMaxDiff.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_std, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_std") +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_after/Gyro_std.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_rms, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_rms") +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_after/Gyro_rms.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_harmonic.ratio, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_harmonic.ratio") +
+  coord_cartesian(ylim = c(0.5, 2.35))
+ggsave("pics_after/Gyro_harmonic.ratio.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_cross.correlation, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_cross.correlation") +
+  coord_cartesian(ylim = c(-50.01, 50.35))
+ggsave("pics_after/Gyro_cross.correlation.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_entropy.rate, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_entropy.rate") +
+  coord_cartesian(ylim = c(5.01, 10.35))
+ggsave("pics_after/Gyro_entropy.rate.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_averagePower, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_averagePower") +
+  coord_cartesian(ylim = c(0.01, 1.05))
+ggsave("pics_after/Gyro_averagePower.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_radioSpectralPeak") +
+  coord_cartesian(ylim = c(10.01, 50.35))
+ggsave("pics_after/Gyro_radioSpectralPeak.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_snr, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_snr") +
+  coord_cartesian(ylim = c(-10.01, 10.35))
+ggsave("pics_after/Gyro_snr.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_energy.in._5.to.3") +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+ggsave("pics_after/Gyro_energy.in._5.to.3.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_windowed.energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_windowed.energy.in._5.to.3") +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+ggsave("pics_after/Gyro_windowed.energy.in._5.to.3.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_peakFreq, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_peakFreq") +
+  coord_cartesian(ylim = c(-1.01, 30.35))
+ggsave("pics_after/Gyro_peakFreq.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_spectralCentroid, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_spectralCentroid") +
+  coord_cartesian(ylim = c(0.01, 0.5))
+ggsave("pics_after/Gyro_spectralCentroid.png")
+
+  
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_bandwidth, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_bandwidth") +
+  coord_cartesian(ylim = c(0.01, 0.15))
+ggsave("pics_after/Gyro_bandwidth.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_wavelet.band, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_wavelet.band") +
+  coord_cartesian(ylim = c(0.75, 1.05))
+ggsave("pics_after/Gyro_wavelet.band.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_wavelet.entropy, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_wavelet.entropy") +
+  coord_cartesian(ylim = c(0.01, 0.35))
+ggsave("pics_after/Gyro_wavelet.entropy.png")
+
+  ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak_FFT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+    ylab("after Med Gyro_radioSpectralPeak_FFT") +
+  coord_cartesian(ylim = c(10.01, 100.35))
+ggsave("pics_after/Gyro_radioSpectralPeak_FFT.png")
+
+ggplot(data=Train_Data_plot) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=Gyro_radioSpectralPeak_DCT, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  ylab("after Med Gyro_radioSpectralPeak_DCT") +
+  coord_cartesian(ylim = c(10.01, 100.35))
+ggsave("pics_after/Gyro_radioSpectralPeak_DCT.png")
+
+  
+
+```
+
+
+```{r}
+#setwd("E:/PHD-WPI/Summer_2018/Direct direct_research/Exp_9")
+
+Train_Data <- read.csv("subj_after_features_clean.csv", header=TRUE, sep=",")
+boxplot(Train_Data$peakFreq,Train_Data$medTimepoint)
+
+
+# plot
+ggplot(data=Train_Data) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=peakFreq, fill=factor(medTimepoint)), position=position_dodge(1)) +
+  coord_cartesian(ylim = c(-0.01, 0.3)) 
+
+# ggplot(data=Train_Data) + 
+#   geom_boxplot( aes(x=factor(medTimepoint), y=entropy.rate, fill=factor(medTimepoint)), position=position_dodge(1)) 
+# + coord_cartesian(ylim = c(0.875, 0.905))
+
+# Train_Data$averageStepTime
+
+ggplot(data=Train_Data) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=windowed.energy.in._5.to.3, fill=factor(medTimepoint)), position=position_dodge(1)) + 
+  coord_cartesian(ylim = c(0, 4.05))
+
+
+ggplot(data=Train_Data) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=kurtosis, fill=factor(medTimepoint)), position=position_dodge(1)) + 
+  coord_cartesian(ylim = c(0, 10.05))
+
+ggplot(data=Train_Data) + 
+  geom_boxplot( aes(x=factor(medTimepoint), y=averageStepTime, fill=factor(medTimepoint)), position=position_dodge(1)) + 
+  coord_cartesian(ylim = c(0, 0.75))
+
+
+
+```

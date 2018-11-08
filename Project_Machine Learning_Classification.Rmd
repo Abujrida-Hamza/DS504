@@ -1,0 +1,436 @@
+---
+title: "DS504"
+author: "Worcester Polytechnic Institute"
+subtitle: Fall 2018
+output:
+  word_document:
+  toc: true
+theme: united
+---
+#Read Main Tables
+```{r, echo=T}
+library("devtools")
+library(plyr)
+library(reshape2)
+library(car)
+library(GGally)
+library(ggplot2)
+library(jsonlite)
+library(dplyr)
+library (SparkR)
+library(plyr)
+require("sos")
+library(randomForest)
+library(caret)
+library(pROC)
+
+setwd("E:/PhD-WPI/Fall-2018/DS504/Assignment_7/")
+#reading surveys for participants
+subj_after_features <- read.csv(file="subj_after_features.csv", header=TRUE, sep=",")
+subj_before_features <- read.csv(file="subj_before_features.csv", header=TRUE, sep=",")
+ctrl_features <- read.csv(file="ctrl_features.csv", header=TRUE, sep=",")
+
+# cleaning away the bad records.
+subj_after_features_clean<-subset(subj_after_features, (!is.na(subj_after_features[,96])) & (!is.na(subj_after_features[,121])))
+subj_after_features_clean <- subset(subj_after_features_clean, subset=(folder!= 0 ))
+subj_after_features_clean <- subset(subj_after_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(subj_after_features_clean, file = "subj_after_features_clean.csv")
+
+
+# cleaning away the bad records.
+subj_before_features_clean<-subset(subj_before_features, (!is.na(subj_before_features[,96])) & (!is.na(subj_before_features[,121])))
+subj_before_features_clean <- subset(subj_before_features_clean, subset=(folder!= 0 ))
+subj_before_features_clean <- subset(subj_before_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(subj_before_features_clean, file = "subj_before_features_clean.csv")
+
+
+# cleaning away the bad records.
+ctrl_features_clean<-subset(ctrl_features, (!is.na(ctrl_features[,96])) & (!is.na(ctrl_features[,121])))
+ctrl_features_clean <- subset(ctrl_features_clean, subset=(folder!= 0 ))
+ctrl_features_clean <- subset(ctrl_features_clean, subset=(Gyro_folder!= 0 ))
+write.csv(ctrl_features_clean, file = "ctrl_features_clean.csv")
+
+```
+
+
+
+```{r, echo=T}
+# Select features
+# combine datasets
+Exp1 <- rbind(subj_before_features_clean, subj_after_features_clean, ctrl_features_clean)
+write.csv(Exp1, file = "Exp1.csv")
+write.csv(Exp1, file = "Exp_Data_all.csv")
+
+# Filter subjects and controls 
+Ex6_subjects <- subset(Exp1, subset=(professional.diagnosis=="true" ))
+Ex6_controls <- subset(Exp1, subset=(professional.diagnosis=="false" ))
+
+length(unique(Exp1$healthCode))
+length(unique(Ex6_subjects$healthCode))
+length(unique(Ex6_controls$healthCode))
+
+# remove instances where the responce variable  Medpoint is unknown.
+Clean_Data <-subset(Exp1, (!is.na(ctrl_features[,18])) )
+length(unique(Clean_Data$healthCode))
+
+# some stats about the data
+nrow(Clean_Data)
+ncol(Clean_Data)
+colnames(Clean_Data)
+
+#get the Accelerometer features Gyroscope features in addition some life-style features
+Clean_Data <- Clean_Data[, c(6,18,23:27,38:56, 58:72, 73:95,97:120)]
+
+#finding out how many subejects and how many controls
+Ex6_subjects <- subset(Clean_Data, subset=(professional.diagnosis=="true" ))
+length(unique(Ex6_subjects$healthCode))
+
+Ex6_controls <- subset(Clean_Data, subset=(professional.diagnosis=="false" ))
+length(unique(Ex6_controls$healthCode))
+
+# execluding the healthcode id
+Clean_Data <- Clean_Data[, c(2:88)]
+
+```
+
+
+```{R}
+# Features Cleaning.
+  # Removing the features that has thousands of missing values,
+  # this happen becaue patients did not fully completed the survey's.
+  colnames(Clean_Data)[colSums(is.na(Clean_Data)) > 0]
+  colSums(is.na(Clean_Data))
+  Clean_Data <- Clean_Data[ , -which(names(Clean_Data) %in% c("thd", "Gyro_thd"))]
+  Clean_Data <- Clean_Data[ , -which(names(Clean_Data) %in% c("last.smoked", "diagnosis.year", "medication.start.year", "onset.year", "packs.per.day", "years.smoking", "last.smoked", ""))]
+  
+  # For life-style features that has few na values, cleaning out those bad records.
+  Clean_Data<-subset(Clean_Data, (!is.na(Clean_Data[,2])) )
+  Clean_Data<-subset(Clean_Data, (!is.na(Clean_Data[,3])) )
+  Clean_Data<-subset(Clean_Data, (!is.na(Clean_Data[,4])) )
+  Clean_Data<-subset(Clean_Data, (!is.na(Clean_Data[,5])) )
+  Clean_Data<-subset(Clean_Data, (!is.na(Clean_Data[,7])) )
+  
+  #finding the data types for each features to be converted to numeric values.
+  lapply(Clean_Data, class)
+  
+  # Modify Features format to numeric for Machine learning
+  Clean_Data$medTimepoint = factor(Clean_Data$medTimepoint)
+  Clean_Data$age = as.numeric(Clean_Data$age)
+  Clean_Data$numSteps = as.numeric(Clean_Data$numSteps)
+ # Clean_Data$packs.per.day = as.numeric(Clean_Data$packs.per.day)
+ # Clean_Data$years.smoking = as.numeric(Clean_Data$years.smoking)
+  Clean_Data$gender = as.numeric(Clean_Data$gender)
+  Clean_Data$smoked <- mapvalues(Clean_Data$smoked, from = c("true", "false"), to = c(1,0))
+  Clean_Data$smoked = as.numeric(Clean_Data$smoked)
+  lapply(Clean_Data, class)
+  Clean_Data$GELTQ.2 <- mapvalues(Clean_Data$GELTQ.2, from = c("Never/Rarely", "Sometimes","Often"), to = c(0,1,2))
+  Clean_Data$race <- as.numeric(mapvalues(Clean_Data$race, from = c("Black or African", "Latino/Hispanic", "Native American", 
+     "Pacific Islander", "Middle Eastern", "Caribbean", "South Asian", "East Asian", "White or Caucasian", "Mixed"), to = c(0,1,2,3,4,5,6,7,8,9)))
+  Clean_Data$education <- as.numeric(mapvalues(Clean_Data$education, from = c("2-year college degree", "4-year college degree", "Doctoral Degree", "High School Diploma/GED", "Master's Degree", "Some college", "Some graduate school", "Some high school"), to = c(0,1,2,3,4,5,6,7)))
+  Clean_Data$employment <- as.numeric(mapvalues(Clean_Data$employment, from = c("A homemaker", "A student", "Employment for wages", "Out of work", "Retired", "Self-employed", "Unable to work"), to = c(0,1,2,3,4,5,6)))
+  Clean_Data$maritalStatus <- as.numeric(mapvalues(Clean_Data$maritalStatus, from = c("Divorced", "Married or domestic partnership", "Other", "Separated", "Single", "never married", "Widowed"), to = c(0,1,2,3,4,5,6)))
+  Clean_Data$are.caretaker <- as.numeric(mapvalues(Clean_Data$are.caretaker, from = c("true", "false"), to = c(1,0)))
+  Clean_Data$smartphone <- as.numeric(mapvalues(Clean_Data$smartphone, from = c("Difficult", "Easy", "Neither easy nor difficult", "Very Difficult", "Very easy"), to = c(0,1,2,3,4)))
+      
+  # change features to numeric
+  colnames(Clean_Data)
+  Clean_Data <- Clean_Data[, c(1:15,19:79)]
+  Clean_Data$GELTQ.2 = as.numeric(Clean_Data$GELTQ.2)
+  Clean_Data$EQ.5D1 = as.numeric(Clean_Data$EQ.5D1)
+  Clean_Data$GELTQ.1a = as.numeric(Clean_Data$GELTQ.1a)
+  Clean_Data$GELTQ.1b = as.numeric(Clean_Data$GELTQ.1b)
+  Clean_Data$GELTQ.1c = as.numeric(Clean_Data$GELTQ.1c)
+   
+   # Backup data   
+   Clean_Data_All <- Clean_Data[, c(2:14,15:76)]
+      
+   # Saving Data copy after cleaning up 
+   write.csv(Clean_Data, file = "Clean_Data.csv")
+
+   
+```
+
+
+```{R}
+#Feature Importance for all features Medicaiton time
+
+Clean_Data_Med <- Clean_Data[ , -which(names(Clean_Data) %in% c("professional.diagnosis", "smartphone"))]
+control <- trainControl(method="cv", number=10)
+# train the model
+model <- train(medTimepoint~., data=Clean_Data_Med, method="treebag", preProcess="scale", trControl=control, na.action=na.exclude)
+# estimate variable importance
+importance <- varImp(model, scale=FALSE)
+# summarize importance
+print(importance)
+# plot importance
+plot(importance)
+write.csv(Clean_Data_Med, file = "Clean_Data_Med-2.csv")
+```
+
+```{R}
+#Feature Importance for PwP/HC
+Clean_Data_PWPHC <- Clean_Data[ , -which(names(Clean_Data) %in% c("medTimepoint", "smartphone"))]
+control <- trainControl(method="cv", number=10)
+# train the model
+model <- train(professional.diagnosis~., data=Clean_Data_PWPHC, method="treebag", preProcess="scale", trControl=control, na.action=na.exclude)
+# estimate variable importance
+importance <- varImp(model, scale=FALSE)
+# summarize importance
+print(importance)
+# plot importance
+plot(importance)
+write.csv(Clean_Data_PWPHC, file = "PwP_vs_HC-2.csv")
+```
+
+
+
+
+
+```{R}
+
+# Feature importance for RandomForest Medication time
+
+Clean_Data_RF <- Clean_Data[ , -which(names(Clean_Data) %in% c("medTimepoint", "smartphone"))]
+lapply(Clean_Data_RF, class)
+colnames(Clean_Data_RF)[colSums(is.na(Clean_Data_RF)) > 0]
+
+Clean_Data_RF$professional.diagnosis <- as.numeric(mapvalues(Clean_Data_RF$professional.diagnosis, from = c("false", "true"), to = c(0,1)))
+  unique(Clean_Data_RF$professional.diagnosis)
+  Clean_Data_RF$professional.diagnosis <- as.numeric(Clean_Data_RF$professional.diagnosis)
+
+  impute.mean <- function(x) replace(x, is.na(x) | is.nan(x) | is.infinite(x), mean(x[!is.na(x) & !is.nan(x) & !is.infinite(x)]))
+Clean_Data_RF <- apply(Clean_Data_RF, 2, impute.mean)
+sum(apply( Clean_Data_RF, 2, function(.) sum(is.infinite(.)) ))
+
+fit_rf = randomForest(professional.diagnosis~., data=Clean_Data_RF)
+# Create an importance based on mean decreasing gini
+RandImportance <-importance(fit_rf)
+imp <- as.data.frame(RandImportance)
+View(imp)
+plot (RandImportance)
+
+
+imp2 <- cbind(Features = rownames(imp), imp) 
+colnames(imp2) <- c("Feature", "importance")
+plot (imp2)
+top_Features <- subset(imp2, subset=(importance > 9))
+ggplot(data = top_Features , aes(x = Feature, y = importance)) 
+plot (top_Features)
+
+top_Features[with(top_Features, order(-importance)),]
+
+top_Features %>% 
+  ggplot(aes(x=reorder(Feature,importance), y = importance)) +
+  geom_col() +
+  coord_flip() + 
+  theme(legend.position = "bottom")
+
+```
+
+
+```{R}
+# Feature importance RandomForest PD/HC Classification
+
+Clean_Data_RF <- Clean_Data[ , -which(names(Clean_Data) %in% c("professional.diagnosis", "smartphone"))]
+lapply(Clean_Data_RF, class)
+colnames(Clean_Data_RF)[colSums(is.na(Clean_Data_RF)) > 0]
+
+Clean_Data_RF$medTimepoint <- as.numeric(mapvalues(Clean_Data_RF$medTimepoint, from = c("Immediately before Parkinson medication", "Just after Parkinson medication (at your best)", "I don't take Parkinson medications"), to = c(0,1,2)))
+  unique(Clean_Data_RF$medTimepoint)
+  Clean_Data_RF$medTimepoint <- as.numeric(Clean_Data_RF$medTimepoint)
+
+  impute.mean <- function(x) replace(x, is.na(x) | is.nan(x) | is.infinite(x), mean(x[!is.na(x) & !is.nan(x) & !is.infinite(x)]))
+Clean_Data_RF <- apply(Clean_Data_RF, 2, impute.mean)
+sum(apply( Clean_Data_RF, 2, function(.) sum(is.infinite(.)) ))
+
+fit_rf = randomForest(medTimepoint~., data=Clean_Data_RF)
+# Create an importance based on mean decreasing gini
+RandImportance <-importance(fit_rf)
+imp <- as.data.frame(RandImportance)
+View(imp)
+plot (RandImportance)
+
+
+imp2 <- cbind(Features = rownames(imp), imp) 
+colnames(imp2) <- c("Feature", "importance")
+plot (imp2)
+top_Features <- subset(imp2, subset=(importance > 43))
+ggplot(data = top_Features , aes(x = Feature, y = importance)) 
+plot (top_Features)
+
+top_Features[with(top_Features, order(-importance)),]
+
+top_Features %>% 
+  ggplot(aes(x=reorder(Feature,importance), y = importance)) +
+  geom_col() +
+  coord_flip() + 
+  theme(legend.position = "bottom")
+
+```
+
+
+
+
+```{r}
+# Importance only for the top 25 features. Medication time
+#s(Clean_Data) %in% c("medTimepoint", "age","employment" ,"EQ.5D1" ,"GELTQ.1c" , "GELTQ.1b" ,"maritalStatus" ,"cross.correlation","race","minMaxDiff","skewness","entropy.rate","education", "wavelet.band","std","GELTQ.1a","averageStepTime","kurtosis","wavelet.entropy","Gyro_cross.correlation","averageCadence", "radioSpectralPeak", "harmonic.ratio","rms","coef.of.var.of.stepTime","snr","spectralCentroid","yro_Sway.X.Z", "energy.in._5.to.3","Gyro_kurtosis","Gyro_skewness","Gyro_Sway.X.Y" ))]
+
+
+# Remove High corelated features
+Clean_Data_All_s <- Clean_Data[ , which(names(Clean_Data) %in% c("medTimepoint", "age","employment" ,"EQ.5D1" ,"GELTQ.1c" , 
+"GELTQ.1b" ,"maritalStatus" ,"cross.correlation","race","minMaxDiff","skewness","entropy.rate","education", "std","GELTQ.1a","averageStepTime","kurtosis","wavelet.entropy","Gyro_cross.correlation", "radioSpectralPeak", "harmonic.ratio","rms","coef.of.var.of.stepTime","snr","spectralCentroid","yro_Sway.X.Z", "energy.in._5.to.3","Gyro_kurtosis","Gyro_skewness","Gyro_Sway.X.Y" ))]
+      
+  Clean_Data_All <- Clean_Data_All_s
+  control <- trainControl(method="cv", number=10)
+  # train the model
+  model <- train(medTimepoint~., data=Clean_Data_All, method="treebag", preProcess="scale", trControl=control, na.action=na.exclude)
+  # estimate variable importance
+  importance <- varImp(model, scale=FALSE)
+  # summarize importance
+  print(importance)
+  # plot importance
+  plot(importance)   
+      
+```
+
+
+```{r}
+# Importance only for the top 25 features for PwP vs HC
+#Clean_Data_All_s <- Clean_Data[ , which(names(Clean_Data) %in% c("professional.diagnosis","age", "employment" ,"EQ.5D1","maritalStatus" ,"race" ,"GELTQ.1c" ,"GELTQ.1b" ,"education" , "GELTQ.1a" ,"entropy.rate" ,"smoked" ,"gender" ,"cross.correlation","Gyro_entropy.rate", "GELTQ.2" ,"minMaxDiff" ,"std" ,"wavelet.band"  ,"are.caretaker" ,"rms"  , "energy.in._5.to.3","skewness","Gyro_Sway.X.Z","Gyro_Sway.Y.Z","wavelet.entropy","Gyro_std","peakFreq","Gyro_wavelet.band","Gyro_energy.in._5.to.3","spectralCentroid" ,"averageStepTime","Gyro_wavelet.entropy","Gyro_windowed.energy.in._5.to.3" ))]
+
+# Remove highly corellatd features
+Clean_Data_All_s <- Clean_Data[ , which(names(Clean_Data) %in% c("professional.diagnosis","age", "employment" ,"EQ.5D1","maritalStatus" ,"race" ,"GELTQ.1c" ,"GELTQ.1b" ,"education" , "GELTQ.1a" ,"entropy.rate" ,"smoked" ,"gender" ,"cross.correlation","Gyro_entropy.rate", "GELTQ.2" ,"minMaxDiff" ,"std" ,"wavelet.band"  ,"are.caretaker" ,"rms"  , "energy.in._5.to.3","skewness","Gyro_Sway.X.Z","Gyro_Sway.Y.Z","wavelet.entropy","Gyro_std","peakFreq","Gyro_wavelet.band","Gyro_energy.in._5.to.3","spectralCentroid" ,"averageStepTime","Gyro_wavelet.entropy","Gyro_windowed.energy.in._5.to.3" ))]
+
+
+      
+  Clean_Data_All <- Clean_Data_All_s
+  control <- trainControl(method="cv", number=10)
+  # train the model
+  model <- train(professional.diagnosis~., data=Clean_Data_All, method="treebag", preProcess="scale", trControl=control, na.action=na.exclude)
+  # estimate variable importance
+  importance <- varImp(model, scale=FALSE)
+  # summarize importance
+  print(importance)
+  # plot importance
+  plot(importance)   
+      
+```
+```{R}
+  # Treebag test PwP vs HC
+
+  unique(Clean_Data_All$professional.diagnosis)
+  total_Accuracy <- 0.0
+  highest <-0.0
+  unique(Clean_Data_All$professional.diagnosis)
+     
+  for (i in 1:10) {
+    trainIndex <- createDataPartition(y=Clean_Data_All$professional.diagnosis, p=0.90, list=FALSE )
+    trainingSet<- Clean_Data_All[trainIndex,]
+    testingSet<- Clean_Data_All[-trainIndex,]
+    trainingSet <- trainingSet[complete.cases(trainingSet), ]
+    testingSet <- testingSet[complete.cases(testingSet), ]
+    length(trainingSet$age)
+    length(testingSet$age)
+    
+    # you have to change the labels to words instead of nubers.
+       
+
+       fitControl <- trainControl(method = "cv", number = 10, returnResamp = "all")
+        #set.seed(32323)
+        model.treebag <- train(professional.diagnosis ~ ., method = "treebag", data = trainingSet, trControl = fitControl)
+        result2 <- predict(model.treebag, newdata = testingSet)
+        table(result2)
+        table(testingSet$professional.diagnosis)
+        table(result2,testingSet$professional.diagnosis)
+        confMatx <- confusionMatrix(result2, testingSet$professional.diagnosis)
+        
+        total_Accuracy <- (total_Accuracy + confMatx$overall[[1]])
+        print(i)
+        print(confMatx$overall[[1]])
+        print(confMatx$table)
+        if (confMatx$overall[[1]] >= highest ){
+          highest <- confMatx$overall[[1]]
+          }
+        if (confMatx$overall[[1]] >= 0.9 ){
+        result3 <- as.numeric(result2)
+        result.roc <- roc(testingSet$professional.diagnosis, result3) # Draw ROC curve.
+        plot(result.roc, print.thres="best", print.thres.best.method="closest.topleft")
+
+        result.coords <- coords(result.roc, "best", best.method="closest.topleft", ret=c("threshold", "accuracy"))
+        print(result.coords)#to get threshold and accuracy
+       
+      }}
+      overall_Accuracy <- total_Accuracy/1
+      overall_Accuracy
+      highest
+      
+      Matlab_Clean_Data_HC_PwP <- Clean_Data_All
+      write.csv(Matlab_Clean_Data_HC_PwP, file = "Matlab_Clean_Data_PwP_HC.csv")
+      Matlab_Clean_Data_HC_PwP$professional.diagnosis <- as.numeric(mapvalues(Matlab_Clean_Data_HC_PwP$professional.diagnosis, from = c("false", "true"), to = c(1,2)))
+      unique(Matlab_Clean_Data_HC_PwP$professional.diagnosis)
+      
+      write.csv(Matlab_Clean_Data_HC_PwP, file = "Python_Clean_PwP_HC.csv")
+
+```
+
+
+```{R}
+# Treebag test Medication time
+
+ Clean_Data_All$medTimepoint <- mapvalues(Clean_Data_All$medTimepoint, from = c("Immediately before Parkinson medication", "Just after Parkinson medication (at your best)", "I don't take   Parkinson medications"), to = c("Before medication", "After medication", "No medications"))
+
+
+  unique(Clean_Data_All$medTimepoint)
+  total_Accuracy <- 0.0
+  highest <-0.0
+  unique(Clean_Data_All$medTimepoint)
+     
+  for (i in 1:10) {
+    trainIndex <- createDataPartition(y=Clean_Data_All$medTimepoint, p=0.90, list=FALSE )
+    trainingSet<- Clean_Data_All[trainIndex,]
+    testingSet<- Clean_Data_All[-trainIndex,]
+    trainingSet <- trainingSet[complete.cases(trainingSet), ]
+    testingSet <- testingSet[complete.cases(testingSet), ]
+    length(trainingSet$age)
+    length(testingSet$age) 
+    
+  fitControl <- trainControl(method = "cv", number = 10, returnResamp = "all")
+        #set.seed(32323)
+        model.treebag <- train(medTimepoint ~ ., method = "treebag", data = trainingSet, trControl = fitControl)
+        result2 <- predict(model.treebag, newdata = testingSet)
+        table(result2)
+        table(testingSet$medTimepoint)
+        table(result2,testingSet$medTimepoint)
+        confMatx <- confusionMatrix(result2, testingSet$medTimepoint)
+        
+  total_Accuracy <- (total_Accuracy + confMatx$overall[[1]])
+      print(i)
+        print(confMatx$overall[[1]])
+        print(confMatx$table)
+        if (confMatx$overall[[1]] >= highest ){
+          highest <- confMatx$overall[[1]]
+          }
+        if (confMatx$overall[[1]] >= 0.834){
+        result3 <- as.numeric(result2)
+        result.roc <- roc(testingSet$medTimepoint, result3) # Draw ROC curve.
+        plot(result.roc, print.thres="best", print.thres.best.method="closest.topleft")
+
+  result.coords <- coords(result.roc, "best", best.method="closest.topleft", ret=c("threshold", "accuracy"))
+    print(result.coords)#to get threshold and accuracy
+    #break
+  }}
+      overall_Accuracy <- total_Accuracy/10
+      overall_Accuracy
+      highest
+      
+      Matlab_Clean_Data_All <- Clean_Data_All
+      #write.csv(Matlab_Clean_Data_All, file = "Matlab_Clean_Data.csv")
+      
+      Matlab_Clean_Data_All$medTimepoint <- as.numeric(mapvalues(Matlab_Clean_Data_All$medTimepoint, from = c("Immediately before        Parkinson medication", "Just after Parkinson medication (at your best)", "I don't take Parkinson medications"), to = c(1,2,3)))
+      unique(Matlab_Clean_Data_All$medTimepoint)
+      
+      #write.csv(Matlab_Clean_Data_All, file = "Python_Clean.csv")
+
+```
+
+# End of file thank you!!
